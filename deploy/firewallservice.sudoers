@@ -1,0 +1,3 @@
+Cmnd_Alias FIREWALLSERVICE_ALLOW = /usr/local/lib/firewallservice/java -cp /usr/local/lib/firewallservice/firewallservice.jar com.terentev.firewallservice.AllowFrom
+Defaults!FIREWALLSERVICE_ALLOW env_reset, env_keep = "TERM", env_check = "TERM"
+firewallservice ALL=(root) CWD=/ NOPASSWD: NOSETENV: FIREWALLSERVICE_ALLOW

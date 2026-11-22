@@ -1,0 +1,16 @@
+[Unit]
+Description=Firewall Service
+After=network.target ufw.service
+
+[Service]
+Type=exec
+User=firewallservice
+Group=firewallservice
+ExecStart=/usr/local/lib/firewallservice/java -jar /usr/local/lib/firewallservice/firewallservice.jar /usr/local/etc/firewallservice/config.json
+Restart=on-failure
+RestartSec=3s
+PrivateTmp=true
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
