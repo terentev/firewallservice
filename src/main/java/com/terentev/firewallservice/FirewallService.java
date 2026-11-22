@@ -152,16 +152,17 @@ public final class FirewallService {
 
             String name = params.get("name");
             String password = params.get("password");
-            String expected;
+            Map<String, String> users;
             try {
-                expected = loadConfig(config).users().get(name);
+                users = loadConfig(config).users();
             } catch (IOException e) {
                 LOG.log(System.Logger.Level.ERROR, "Cannot read or validate config.json");
                 send(exchange, 503, "Configuration unavailable");
                 return;
             }
-            if (!MessageDigest.isEqual(hash(expected == null ? "" : expected), hash(password))
-                    || expected == null) {
+            if (!users.containsKey(name)
+                    || !MessageDigest.isEqual(users.get(name).getBytes(StandardCharsets.UTF_8),
+                            password.getBytes(StandardCharsets.UTF_8))) {
                 send(exchange, 401, "Invalid name or password");
                 return;
             }
