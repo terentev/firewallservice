@@ -17,7 +17,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.HexFormat;
@@ -40,12 +39,12 @@ public final class FirewallService {
             .build();
 
     private final Path config;
-    private final byte[] proxyTokenHash;
+    private final byte[] expectedProxyToken;
     private final List<String> allowCommand;
 
     FirewallService(Path config, String proxyToken, List<String> allowCommand) {
         this.config = config;
-        this.proxyTokenHash = hash(proxyToken);
+        this.expectedProxyToken = proxyToken.getBytes(StandardCharsets.US_ASCII);
         this.allowCommand = List.copyOf(allowCommand);
     }
 
@@ -126,7 +125,7 @@ public final class FirewallService {
 
             String proxyToken = singleHeader(exchange, "X-Firewall-Proxy-Token");
             if (proxyToken == null || !TOKEN.matcher(proxyToken).matches()
-                    || !MessageDigest.isEqual(proxyTokenHash, hash(proxyToken))) {
+                    || !MessageDigest.isEqual(expectedProxyToken, proxyToken.getBytes(StandardCharsets.US_ASCII))) {
                 send(exchange, 403, "Forbidden");
                 return;
             }
@@ -287,14 +286,6 @@ public final class FirewallService {
     private static String singleHeader(HttpExchange exchange, String name) {
         List<String> values = exchange.getRequestHeaders().get(name);
         return values != null && values.size() == 1 ? values.getFirst() : null;
-    }
-
-    private static byte[] hash(String value) {
-        try {
-            return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
     }
 
     private static void send(HttpExchange exchange, int status, String message) throws IOException {
