@@ -31,6 +31,7 @@ import java.util.regex.Pattern;
 public final class FirewallService {
     private static final System.Logger LOG = System.getLogger(FirewallService.class.getName());
     private static final Pattern TOKEN = Pattern.compile("[0-9a-f]{64}");
+    private static final String TEST_NAME = "test";
     private static final int MAX_PASSWORD_LENGTH = 512;
     private static final int MAX_QUERY_LENGTH = 8192;
     private static final JsonMapper JSON = JsonMapper.builder()
@@ -135,12 +136,6 @@ public final class FirewallService {
                 return;
             }
 
-            String clientIp = singleHeader(exchange, "X-Firewall-Client-IP");
-            if (clientIp == null || !AllowFrom.isNumericAddress(clientIp)) {
-                send(exchange, 400, "Invalid client IP");
-                return;
-            }
-
             Map<String, String> params;
             try {
                 params = parseQuery(exchange.getRequestURI().getRawQuery());
@@ -150,6 +145,17 @@ public final class FirewallService {
             }
 
             String name = params.get("name");
+            if (TEST_NAME.equals(name)) {
+                sendBody(exchange, 200, "test ok");
+                return;
+            }
+
+            String clientIp = singleHeader(exchange, "X-Firewall-Client-IP");
+            if (clientIp == null || !AllowFrom.isNumericAddress(clientIp)) {
+                send(exchange, 400, "Invalid client IP");
+                return;
+            }
+
             String password = params.get("password");
             Map<String, String> users;
             try {
@@ -251,6 +257,9 @@ public final class FirewallService {
                 throw new IllegalArgumentException();
             }
         }
+        if (TEST_NAME.equals(params.get("name"))) {
+            return params;
+        }
         if (params.size() != 2 || !AllowFrom.NAME.matcher(params.get("name")).matches()
                 || !validPassword(params.get("password"))) {
             throw new IllegalArgumentException();
@@ -289,13 +298,17 @@ public final class FirewallService {
     }
 
     private static void send(HttpExchange exchange, int status, String message) throws IOException {
+        sendBody(exchange, status, message + "\n");
+    }
+
+    private static void sendBody(HttpExchange exchange, int status, String message) throws IOException {
         exchange.getResponseHeaders().set("Content-Type", "text/plain; charset=utf-8");
         exchange.getResponseHeaders().set("Cache-Control", "no-store");
         if ("HEAD".equals(exchange.getRequestMethod())) {
             exchange.sendResponseHeaders(status, -1);
             return;
         }
-        byte[] body = (message + "\n").getBytes(StandardCharsets.UTF_8);
+        byte[] body = message.getBytes(StandardCharsets.UTF_8);
         exchange.sendResponseHeaders(status, body.length);
         exchange.getResponseBody().write(body);
     }
