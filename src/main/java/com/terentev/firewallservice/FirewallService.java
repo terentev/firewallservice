@@ -42,6 +42,7 @@ public final class FirewallService {
     private final Path config;
     private final byte[] expectedProxyToken;
     private final List<String> allowCommand;
+    private final RequestLimiter requestLimiter = new RequestLimiter();
 
     FirewallService(Path config, String proxyToken, List<String> allowCommand) {
         this.config = config;
@@ -136,6 +137,16 @@ public final class FirewallService {
                 return;
             }
 
+            String clientIp = singleHeader(exchange, "X-Firewall-Client-IP");
+            if (clientIp == null || !AllowFrom.isNumericAddress(clientIp)) {
+                send(exchange, 400, "Invalid client IP");
+                return;
+            }
+            if (requestLimiter.isManyRequest(clientIp)) {
+                send(exchange, 429, "Too many requests");
+                return;
+            }
+
             Map<String, String> params;
             try {
                 params = parseQuery(exchange.getRequestURI().getRawQuery());
@@ -147,12 +158,6 @@ public final class FirewallService {
             String name = params.get("name");
             if (TEST_NAME.equals(name)) {
                 sendBody(exchange, 200, "test ok");
-                return;
-            }
-
-            String clientIp = singleHeader(exchange, "X-Firewall-Client-IP");
-            if (clientIp == null || !AllowFrom.isNumericAddress(clientIp)) {
-                send(exchange, 400, "Invalid client IP");
                 return;
             }
 
